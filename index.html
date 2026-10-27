@@ -257,12 +257,10 @@
         }
 
         .col-12 { grid-column: span 12; }
-        .col-8  { grid-column: span 8; }
         .col-6  { grid-column: span 6; }
-        .col-4  { grid-column: span 4; }
 
         @media (max-width: 992px) {
-            .col-8, .col-6, .col-4 { grid-column: span 12; }
+            .col-6 { grid-column: span 12; }
         }
 
         .card-header {
@@ -283,7 +281,7 @@
             gap: 8px;
         }
 
-        /* Map Container (CRITICAL STYLING FIX) */
+        /* Map Container Fix */
         #map-container {
             width: 100%;
             height: 520px;
@@ -292,6 +290,7 @@
             overflow: hidden;
             border: 1px solid var(--border-color);
             z-index: 1;
+            background-color: #e5e7eb;
         }
 
         .chart-container {
@@ -300,7 +299,6 @@
             height: 350px;
         }
 
-        /* Footer */
         footer {
             text-align: center;
             margin-top: 40px;
@@ -402,7 +400,7 @@
             </div>
         </div>
 
-        <!-- Section 1: GIS Map with Esri ArcGIS World Tiles -->
+        <!-- Section 1: GIS Map -->
         <div class="dashboard-grid">
             <div class="card col-12">
                 <div class="card-header">
@@ -411,7 +409,7 @@
                         แผนที่แสดงการกระจายระดับบุคคล (Spot Map) และความหนาแน่นระดับจังหวัด (Choropleth Map)
                     </div>
                     <span style="font-size: 12px; color: var(--text-muted);">
-                        Map Base Tile: <strong>Esri ArcGIS World Street Map</strong>
+                        <i class="fa-solid fa-layer-group"></i> สามารถสลับค่ายแผนที่ได้ที่มุมขวาบนของแผนที่
                     </span>
                 </div>
                 <!-- MAP CONTAINER -->
@@ -423,7 +421,7 @@
                 <div class="card-header">
                     <div class="card-title">
                         <i class="fa-solid fa-chart-line" style="color: var(--primary);"></i>
-                        Epidemic Curve (กราฟแสดงการระบาดตามช่วงเวลาปีกระทบ)
+                        Epidemic Curve (กราฟแสดงการระบาดตามช่วงเวลา)
                     </div>
                 </div>
                 <div class="chart-container" style="height: 320px;">
@@ -462,16 +460,16 @@
         </footer>
     </div>
 
-    <!-- Scripts CDN -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for CSV Parsing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
     <script>
-        // Google Sheet CSV URL
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/1rqtyIY-drzzCGp4vuncEot-C_fLM3jPdZViQOPiAGB4/export?format=csv';
 
-        // Known Geographic Coordinates for Districts in Thailand (Chiang Mai & Main Areas Focus)
         const DISTRICT_COORDS = {
             "เมืองเชียงใหม่": [18.7883, 98.9853],
             "สารภี": [18.7153, 99.0381],
@@ -494,46 +492,56 @@
             "ต่างจังหวัด": [18.7883, 98.9853]
         };
 
-        // Global State Variables
         let rawData = [];
-        let map, markersLayer, choroplethLayer;
+        let map, markersLayer;
         let chartEpi, chartAge, chartDistrict;
 
-        // Initialize Map with Esri ArcGIS Tiles
         function initMap() {
-            // Thailand Center Focus
-            map = L.map('map-container').setView([18.7883, 99.0000], 9);
-
-            // Esri ArcGIS World Street Map Tile Layer
-            const esriWorldStreetMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 18,
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom'
+            // 1. CARTO Voyager (ความเร็วสูง คมชัด สบายตา เหมาะกับ แดชบอร์ด)
+            const cartoVoyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
             });
 
-            // Esri ArcGIS World Topo Map (Alternative Choice)
-            const esriWorldTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 18,
-                attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+            // 2. CARTO Positron (สไตล์คลีนสีสว่าง)
+            const cartoPositron = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
             });
 
-            // Set Esri World Street Map as default layer
-            esriWorldStreetMap.addTo(map);
+            // 3. OpenStreetMap Standard (สำรองมาตรฐาน)
+            const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                subdomains: ['a', 'b', 'c'],
+                maxZoom: 19
+            });
 
-            // Add Layer Control
-            L.control.layers({
-                "Esri World Street Map": esriWorldStreetMap,
-                "Esri World Topo Map": esriWorldTopo
-            }).addTo(map);
+            // ตั้งค่า Map Object
+            map = L.map('map-container', {
+                center: [18.7883, 99.0000],
+                zoom: 9,
+                layers: [cartoVoyager] // กำหนด CARTO Voyager เป็นค่าเริ่มต้น
+            });
+
+            // เมนูเลือกสลับค่ายแผนที่
+            const baseMaps = {
+                "CARTO Voyager (แนะนำ)": cartoVoyager,
+                "CARTO Positron (สว่าง)": cartoPositron,
+                "OpenStreetMap Standard": osmStandard
+            };
+
+            L.control.layers(baseMaps).addTo(map);
 
             markersLayer = L.layerGroup().addTo(map);
 
-            // CRITICAL FIX: Trigger map resize calculation to render tiles correctly
+            // บังคับเรนเดอร์ภาพไทล์ทันทีหลังเปิดเว็บ
             setTimeout(() => {
                 map.invalidateSize();
-            }, 400);
+            }, 300);
         }
 
-        // Fetch Live CSV Data
         function loadLiveData() {
             Papa.parse(CSV_URL, {
                 download: true,
@@ -545,12 +553,11 @@
                     updateDashboard();
                 },
                 error: function(err) {
-                    console.error("CSV Download failed:", err);
+                    console.error("CSV Download Error:", err);
                 }
             });
         }
 
-        // Populate Dynamic Dropdowns
         function populateFilterOptions(data) {
             const provinces = new Set();
             const districts = new Set();
@@ -563,16 +570,21 @@
             });
 
             const provSelect = document.getElementById('filter-province');
-            provinces.forEach(p => provSelect.add(new Option(p, p)));
+            if(provSelect.options.length <= 1) {
+                provinces.forEach(p => provSelect.add(new Option(p, p)));
+            }
 
             const distSelect = document.getElementById('filter-district');
-            districts.forEach(d => distSelect.add(new Option(d, d)));
+            if(distSelect.options.length <= 1) {
+                districts.forEach(d => distSelect.add(new Option(d, d)));
+            }
 
             const riskSelect = document.getElementById('filter-risk');
-            risks.forEach(r => riskSelect.add(new Option(r, r)));
+            if(riskSelect.options.length <= 1) {
+                risks.forEach(r => riskSelect.add(new Option(r, r)));
+            }
         }
 
-        // Filter Application Logic
         function getFilteredData() {
             const provVal = document.getElementById('filter-province').value;
             const distVal = document.getElementById('filter-district').value;
@@ -588,16 +600,13 @@
             });
         }
 
-        // Main Refresh Function
         function updateDashboard() {
             const filtered = getFilteredData();
-
             updateKPIs(filtered);
             renderMapPoints(filtered);
             renderCharts(filtered);
         }
 
-        // KPI Updates
         function updateKPIs(data) {
             const total = data.length;
             let maleCount = 0;
@@ -621,7 +630,6 @@
             document.getElementById('kpi-avg-age').innerText = ageNum > 0 ? (ageSum / ageNum).toFixed(1) : 0;
         }
 
-        // Render Map Points & Spot Map
         function renderMapPoints(data) {
             markersLayer.clearLayers();
 
@@ -634,7 +642,6 @@
             Object.keys(districtCounts).forEach(dist => {
                 const count = districtCounts[dist];
                 const coords = DISTRICT_COORDS[dist] || [18.7883 + (Math.random() - 0.5)*0.1, 98.9853 + (Math.random() - 0.5)*0.1];
-                
                 const radius = Math.min(Math.max(count * 1.5, 8), 35);
 
                 const circle = L.circleMarker(coords, {
@@ -643,7 +650,7 @@
                     color: "#b91c1c",
                     weight: 2,
                     opacity: 0.9,
-                    fillOpacity: 0.6
+                    fillOpacity: 0.65
                 });
 
                 circle.bindPopup(`
@@ -656,11 +663,9 @@
                 markersLayer.addLayer(circle);
             });
 
-            // Re-invalidate map size to guarantee no blank tiles appear
             map.invalidateSize();
         }
 
-        // Render Chart.js Visualizations
         function renderCharts(data) {
             // 1. Epidemic Curve
             const dateCounts = {};
@@ -669,17 +674,14 @@
                 dateCounts[date] = (dateCounts[date] || 0) + 1;
             });
 
-            const dates = Object.keys(dateCounts);
-            const counts = Object.values(dateCounts);
-
             if (chartEpi) chartEpi.destroy();
             chartEpi = new Chart(document.getElementById('epiCurveChart'), {
                 type: 'line',
                 data: {
-                    labels: dates,
+                    labels: Object.keys(dateCounts),
                     datasets: [{
                         label: 'จำนวนผู้ติดเชื้อใหม่',
-                        data: counts,
+                        data: Object.values(dateCounts),
                         borderColor: '#0284c7',
                         backgroundColor: 'rgba(2, 132, 199, 0.15)',
                         fill: true,
@@ -691,13 +693,11 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true }
-                    }
+                    scales: { y: { beginAtZero: true } }
                 }
             });
 
-            // 2. Age Distribution
+            // 2. Age Groups
             const ageGroups = { '0-18 ปี': 0, '19-35 ปี': 0, '36-60 ปี': 0, '60+ ปี': 0 };
             data.forEach(r => {
                 const age = parseFloat(r.age);
@@ -756,23 +756,19 @@
             });
         }
 
-        // Event Listeners for Filters
+        // Listeners
         document.getElementById('filter-province').addEventListener('change', updateDashboard);
         document.getElementById('filter-district').addEventListener('change', updateDashboard);
         document.getElementById('filter-sex').addEventListener('change', updateDashboard);
         document.getElementById('filter-risk').addEventListener('change', updateDashboard);
 
-        // Window Resize Map Invalidation
         window.addEventListener('resize', () => {
             if (map) map.invalidateSize();
         });
 
-        // Initialize App on DOM Load
         document.addEventListener('DOMContentLoaded', () => {
             initMap();
             loadLiveData();
-
-            // Set Real-time Polling Interval (Auto Refresh every 30 Seconds)
             setInterval(loadLiveData, 30000);
         });
     </script>
